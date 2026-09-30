@@ -13,7 +13,7 @@
 
 #include <string.h>
 
-static const char *const COLOR_NAMES[] = { "RED", "GREEN", "BLUE" };
+static const char *const COLOR_NAMES[] = {"RED", "GREEN", "BLUE"};
 
 /*
  * dt_enum_is_valid returns true for a declared ordinal. C permits any integer
@@ -26,9 +26,15 @@ bool dt_enum_is_valid(int ordinal)
        dt_enum_is_valid(2)   -> true, BLUE
        dt_enum_is_valid(3)   -> false, one past the set
        dt_enum_is_valid(-1)  -> false, below the lower bound */
-    (void)ordinal;
-    (void)COLOR_NAMES; /* Delete this line after you use COLOR_NAMES. */
-    return false;
+
+    if (ordinal < 0 || ordinal > DT_COLOR_COUNT-1)
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 /*
@@ -44,9 +50,26 @@ dt_status dt_enum_name(int ordinal, const char **out)
        dt_enum_name(2, &out)  -> DT_OK, *out = "BLUE"
        dt_enum_name(3, &out)  -> DT_ERR_RANGE, *out untouched
        cases/normal/enum_names.case */
-    (void)ordinal;
-    (void)out;
-    return DT_ERR_RANGE;
+    if (dt_enum_is_valid(ordinal))
+    {
+        if (ordinal == 0)
+        {
+            *out = "RED";
+        }
+        else if (ordinal == 1)
+        {
+            *out = "GREEN";
+        }
+        else if (ordinal == 2)
+        {
+            *out = "BLUE";
+        }
+        return DT_OK;
+    }
+    else
+    {
+        return DT_ERR_RANGE;
+    }
 }
 
 /*
@@ -60,7 +83,23 @@ dt_status dt_enum_from_name(const char *name, int *out)
        dt_enum_from_name("PURPLE", &out)  -> DT_ERR_RANGE, out untouched
        dt_enum_from_name("1", &out)       -> DT_ERR_RANGE because no text matches
        cases/normal/enum_names.case */
-    (void)name;
-    (void)out;
-    return DT_ERR_RANGE;
-}
+        if (strcmp(name, "RED") == 0)
+        {
+            *out = 0;
+            return DT_OK;
+        }
+        else if (strcmp(name, "GREEN") == 0)
+        {
+            *out = 1;
+            return DT_OK;
+        }
+        else if (strcmp(name, "BLUE") == 0)
+        {
+            *out = 2;
+            return DT_OK;
+        }
+        else
+        {
+            return DT_ERR_RANGE;
+        }
+    }
