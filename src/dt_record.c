@@ -36,9 +36,37 @@ dt_record *dt_record_new(const char **field_names, size_t field_count)
        nine fields                  -> NULL, and the driver reports DT_ERR_CAPACITY
        cases/normal/record_basics.case, cases/capacity/record_max_fields.case,
        cases/capacity/record_over_fields.case */
-    (void)field_names;
-    (void)field_count;
-    return NULL;
+    /* A record has at most DT_RECORD_MAX_FIELDS fields. */
+    if (field_count > DT_RECORD_MAX_FIELDS) {
+        return NULL;
+    }
+
+    /* One malloc holds the whole record, since names and values are fixed arrays inside it. */
+    dt_record *r = malloc(sizeof *r);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < field_count; i++) {
+        /* Copy the name, since the driver's text does not outlive the command. */
+        size_t len = strlen(field_names[i]);
+        r->names[i] = malloc(len + 1);
+        if (r->names[i] == NULL) {
+            /* Free the names copied so far, then the record, so nothing leaks. */
+            for (size_t j = 0; j < i; j++) {
+                free(r->names[j]);
+            }
+            free(r);
+            return NULL;
+        }
+        memcpy(r->names[i], field_names[i], len + 1);  /* + 1 copies the '\0' too */
+
+        /* Every field starts as nil. */
+        r->values[i] = dt_value_nil();
+    }
+
+    r->count = field_count;
+    return r;
 }
 
 /*
@@ -50,7 +78,17 @@ void dt_record_free(dt_record *r)
     /* TODO: Release the copied field names. Then release the record.
        a record holding a string value  -> the names go, the string stays
        dt_record_free(NULL)             -> returns, having done nothing */
-    (void)r;
+    if (r == NULL) {  /* Accept NULL, like free(NULL) does. */
+        return;
+    }
+
+    /* Each name was copied with its own malloc, so each needs its own free. */
+    for (size_t i = 0; i < r->count; i++) {
+        free(r->names[i]);
+    }
+
+    /* The values belong to the environment, so only the record goes. */
+    free(r);
 }
 
 /*
@@ -62,8 +100,7 @@ size_t dt_record_field_count(const dt_record *r)
        The count does not change after construction.
        after `rec new person name age`:  dt_record_field_count(person) -> 2
        cases/normal/record_basics.case */
-    (void)r;
-    return 0;
+    return r->count; /* A field read; the count never changes after new. */
 }
 
 /*
@@ -79,10 +116,13 @@ dt_status dt_record_field_name(const dt_record *r, size_t index, const char **ou
          dt_record_field_name(person, 0, &out)  -> DT_OK, *out = "name"
          dt_record_field_name(person, 2, &out)  -> DT_ERR_RANGE, *out untouched
        cases/normal/record_basics.case */
-    (void)r;
-    (void)index;
-    (void)out;
-    return DT_ERR_RANGE;
+    /* Positions run from 0 to count - 1, so count itself is too far. */
+    if (index >= r->count) {
+        return DT_ERR_RANGE;
+    }
+
+    *out = r->names[index];
+    return DT_OK;
 }
 
 /*
@@ -96,9 +136,16 @@ dt_status dt_record_get(const dt_record *r, const char *field, dt_value *out)
          dt_record_get(person, "age", &out)      -> DT_OK, *out is the integer 36
          dt_record_get(person, "salary", &out)   -> DT_ERR_FIELD, *out untouched
        cases/normal/record_basics.case, cases/boundary/record_unknown_field.case */
-    (void)r;
-    (void)field;
-    (void)out;
+    /* Search the declared names for field. */
+    for (size_t i = 0; i < r->count; i++) {
+        if (strcmp(r->names[i], field) == 0) {
+            /* Found it. The value sits at the same position as the name. */
+            *out = r->values[i];
+            return DT_OK;
+        }
+    }
+
+    /* No match. The record never declared this field. */
     return DT_ERR_FIELD;
 }
 
@@ -115,8 +162,16 @@ dt_status dt_record_set(dt_record *r, const char *field, dt_value v)
          dt_record_set(person, "salary", dt_value_int(1))   -> DT_ERR_FIELD
          the record still has only the fields "name" and "age"
        cases/normal/record_basics.case, cases/boundary/record_unknown_field.case */
-    (void)r;
-    (void)field;
-    (void)v;
+    /* Search the declared names for field. */
+    for (size_t i = 0; i < r->count; i++) {
+        if (strcmp(r->names[i], field) == 0) {
+            /* Found it. Replace the value at the same position as the name.
+               The old value belongs to the environment, so it is not freed. */
+            r->values[i] = v;
+            return DT_OK;
+        }
+    }
+
+    /* No match. Refuse, since a record never gains a field. */
     return DT_ERR_FIELD;
 }
