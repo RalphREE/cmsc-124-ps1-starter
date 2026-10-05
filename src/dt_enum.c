@@ -52,18 +52,7 @@ dt_status dt_enum_name(int ordinal, const char **out)
        cases/normal/enum_names.case */
     if (dt_enum_is_valid(ordinal))
     {
-        if (ordinal == 0)
-        {
-            *out = "RED";
-        }
-        else if (ordinal == 1)
-        {
-            *out = "GREEN";
-        }
-        else if (ordinal == 2)
-        {
-            *out = "BLUE";
-        }
+        *out = COLOR_NAMES[ordinal];
         return DT_OK;
     }
     else
@@ -83,23 +72,13 @@ dt_status dt_enum_from_name(const char *name, int *out)
        dt_enum_from_name("PURPLE", &out)  -> DT_ERR_RANGE, out untouched
        dt_enum_from_name("1", &out)       -> DT_ERR_RANGE because no text matches
        cases/normal/enum_names.case */
-        if (strcmp(name, "RED") == 0)
+        for (int i = 0; i < DT_COLOR_COUNT; i++)
         {
-            *out = 0;
-            return DT_OK;
+            if (strcmp(name, COLOR_NAMES[i]) == 0)
+            {
+                *out = i;
+                return DT_OK;
+            }
         }
-        else if (strcmp(name, "GREEN") == 0)
-        {
-            *out = 1;
-            return DT_OK;
-        }
-        else if (strcmp(name, "BLUE") == 0)
-        {
-            *out = 2;
-            return DT_OK;
-        }
-        else
-        {
             return DT_ERR_RANGE;
-        }
     }
