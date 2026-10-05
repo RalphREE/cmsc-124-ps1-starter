@@ -39,7 +39,7 @@ C will still compile even if we forget the tag check, read the wrong member, or 
 > memory spent on something no lookup uses. Argue the other side: describe a
 > design that drops it, say what breaks, and say whether you'd ship it.
 
-...
+The purpose of the insertion order for the dt_map is for it to behave similar to an array/linked list. This is useful in this specific context since the file needs to print the contents of the map in the order they were added. However, values in a map are called by key though, not insertion order. Removing the list would save memory and make the map a little simpler, since normal hashmap lookups do not use insertion order anyway. What would break is anything that expects consistent insertion-order iteration, like printing values in the same order they were added or accessing the map as if it had a stable sequence.  But you can just store keys in a separate array if you need that behavior, but that would bring back some of the memory cost.  That is what I would probably ship, a simpler version of the map without the order and whenever I need it, I’ll use a separate array.
 
 ## 4. Access after release vs. an unreleased allocation
 
@@ -48,4 +48,4 @@ C will still compile even if we forget the tag check, read the wrong member, or 
 > server? How does that answer change for a command-line tool that exits in a
 > second?
 
-...
+Accessing an allocation after it has been released is more dangerous than leaving an allocation unreleased. If memory has already been freed, using it can cause crashes, corrupted data, or unpredictable behavior because that memory could already be reused for something else. This is called a use-after-free bug. An allocation that remains unreleased is a memory leak. In a long-running server, leaks can keep building up over time until the server uses too much memory, slows down, or eventually crashes. For a command-line tool that exits after a second, a small leak is usually less serious because the operating system reclaims the program’s memory when it exits. However, a use-after-free is still serious even in a short program because it can break the program before it has a chance to exit.
